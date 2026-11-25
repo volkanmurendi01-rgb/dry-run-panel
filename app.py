@@ -10,7 +10,7 @@ st.set_page_config(
 )
 
 st.title("📊 Dry Run Panel")
-st.caption("Sanal işlem takibi · Gerçek emir göndermez ve gerçek para kullanmaz.")
+st.caption("Virtual trade tracking · It does not send real orders or use real money.")
 
 
 def get_setting(name: str):
@@ -43,20 +43,20 @@ def load_rows() -> pd.DataFrame:
         )
         return pd.DataFrame(response.data or [])
     except Exception as exc:
-        st.error("Supabase verileri alınamadı. Bağlantı ve RLS ayarlarını kontrol edin.")
-        with st.expander("Teknik ayrıntı"):
+        st.error("Supabase data could not be loaded. Check your connection and RLS settings.")
+        with st.expander("Technical details"):
             st.code(str(exc))
         return pd.DataFrame()
 
 
 with st.sidebar:
-    st.header("Veri kaynağı")
-    st.write("Supabase bağlantısı Streamlit Secrets üzerinden yapılandırılır.")
-    if st.button("Verileri yenile", use_container_width=True):
+    st.header("Data source")
+    st.write("The Supabase connection is configured through Streamlit Secrets.")
+    if st.button("Refresh data", use_container_width=True):
         st.cache_data.clear()
         st.rerun()
     st.divider()
-    st.caption("Bu uygulama yalnızca görüntüleme yapar; alım-satım emri göndermez.")
+    st.caption("This app is view-only; it does not send trading orders.")
 
 
 @st.cache_data(ttl=30)
@@ -67,11 +67,11 @@ def cached_rows() -> pd.DataFrame:
 df = cached_rows()
 if df.empty:
     st.info(
-        "Henüz gösterilecek veri yok. Supabase `public.dry_run` tablosuna "
-        "`balance`, `closed`, `wins`, `losses` ve `recorded_at` alanlarıyla "
-        "bir kayıt ekleyin; bağlantı ayarlarını aşağıdaki README'de bulabilirsiniz."
+        "There is no data to display yet. Add a record to the Supabase "
+        "`public.dry_run` table with `balance`, `closed`, `wins`, `losses`, "
+        "and `recorded_at` fields. Connection settings are available in the README."
     )
-    st.metric("Kayıt sayısı", "0")
+    st.metric("Record count", "0")
 else:
     for column in ("balance", "closed", "wins", "losses"):
         if column in df:
@@ -86,24 +86,22 @@ else:
 
     latest = df.dropna(subset=["balance"]).iloc[-1] if df["balance"].notna().any() else None
     if latest is not None:
-        balance = float(latest["balance"])
         closed = int(latest.get("closed") or 0)
         wins = int(latest.get("wins") or 0)
         losses = int(latest.get("losses") or 0)
-        cols = st.columns(4)
-        cols[0].metric("Sanal bakiye", f"{balance:,.2f}")
-        cols[1].metric("Kapanan işlem", f"{closed:,}")
-        cols[2].metric("Kazanç", f"{wins:,}")
-        cols[3].metric("Kayıp", f"{losses:,}")
+        cols = st.columns(3)
+        cols[0].metric("Closed trades", f"{closed:,}")
+        cols[1].metric("Wins", f"{wins:,}")
+        cols[2].metric("Losses", f"{losses:,}")
 
     if "balance" in df and time_column in df:
         chart_data = df.dropna(subset=[time_column, "balance"]).set_index(time_column)
         if not chart_data.empty:
-            st.subheader("Sanal bakiye geçmişi")
-            st.line_chart(chart_data["balance"], y_label="Bakiye")
+            st.subheader("Virtual balance history")
+            st.line_chart(chart_data["balance"], y_label="Balance")
 
-    st.subheader("Kayıtlar")
+    st.subheader("Records")
     st.dataframe(df, use_container_width=True, hide_index=True)
 
 st.divider()
-st.caption("Dry Run = deneme/simülasyon. Bu panel finansal tavsiye değildir.")
+st.caption("Dry Run = trial/simulation. This panel is not financial advice.")
